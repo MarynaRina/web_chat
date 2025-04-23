@@ -1,0 +1,37 @@
+{
+  "compilerOptions": {
+    /* Мова та оточення */
+    "target": "es2016", 
+    "lib": ["es2016", "dom"],
+    
+    /* Модулі */
+    "module": "NodeNext", // Змінено з "commonjs" на "NodeNext"
+    "moduleResolution": "NodeNext", // Додано для підтримки сучасних імпортів
+    "rootDir": "./src", // Вказуємо кореневу папку для TS файлів
+    "outDir": "./dist", // Папка для скомпільованих JS файлів
+    
+    /* JavaScript підтримка */
+    "allowJs": true, // Дозволяємо JS файли в проекті
+    "checkJs": true, // Додаємо перевірку типів для JS файлів
+    
+    "sourceMap": true, // Генеруємо source maps
+    
+    /* Interop налаштування */
+    "esModuleInterop": true,
+    "forceConsistentCasingInFileNames": true,
+    
+    /* Перевірка типів */
+    "strict": true,
+    "skipLibCheck": true,
+    
+    /* Додаткові налаштування */
+    "resolveJsonModule": true // Для імпорту JSON файлів
+  },
+  "include": [
+    "src/**/*" // Включаємо всі файли з папки src
+  ],
+  "exclude": [
+    "node_modules",
+    "dist"
+  ]
+}
