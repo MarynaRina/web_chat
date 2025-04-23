@@ -87,7 +87,8 @@ const io = new Server(server, {
     credentials: true,
     allowedHeaders: ["Content-Type", "Authorization"],
   },
-  transports: ["websocket"], // Примусово використовуємо тільки WebSockets
+  // Дозвольте і websocket і polling:
+  transports: ["websocket", "polling"],
   allowEIO3: true,
 });
 
