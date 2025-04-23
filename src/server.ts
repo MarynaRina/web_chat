@@ -53,18 +53,13 @@ app.options("*", cors(corsOptions)); // Preflight для всіх маршрут
 app.use(express.json());
 
 const corsMiddleware: RequestHandler = (req, res, next) => {
-  res.header(
-    "Access-Control-Allow-Origin",
-    process.env.NODE_ENV === "production"
-      ? "https://webchat-c0fbb.web.app"
-      : "http://localhost:5173"
-  );
+  res.header("Access-Control-Allow-Origin", "https://webchat-c0fbb.web.app");
   res.header("Access-Control-Allow-Methods", "GET,POST,PUT,DELETE");
   res.header("Access-Control-Allow-Headers", "Content-Type, Authorization");
   res.header("Access-Control-Allow-Credentials", "true");
 
   if (req.method === "OPTIONS") {
-    res.status(200).end(); // 🔧 просто викликаємо, не повертаємо
+    res.status(200).end();
     return;
   }
 
