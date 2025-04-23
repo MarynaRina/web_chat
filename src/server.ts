@@ -40,18 +40,12 @@ mongoose
   .then(() => console.log("✅ MongoDB успішно підключено"))
   .catch((err) => console.error("❌ Помилка підключення до MongoDB:", err));
 
-// CORS налаштування залежно від середовища
+// Змініть CORS налаштування:
 const corsOptions = {
-  origin:
-    process.env.NODE_ENV === "production"
-      ? [
-          "https://webchat-c0fbb.web.app",
-          "https://webchat-c0fbb.firebaseapp.com",
-        ]
-      : "http://localhost:5173",
-  methods: ["GET", "POST", "OPTIONS"], // Додайте OPTIONS
+  origin: "*", // Тимчасово дозволяємо всі домени для тестування
+  methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
   credentials: true,
-  allowedHeaders: ["Content-Type", "Authorization"], // Додайте цей рядок
+  allowedHeaders: ["Content-Type", "Authorization", "x-requested-with"],
 };
 
 app.use(cors(corsOptions));
@@ -85,49 +79,46 @@ app.get("/", (_req: Request, res: Response) => {
   res.send("Chat Server API is running!");
 });
 
-// Socket.IO настройка
+// Оновіть налаштування Socket.IO
 const io = new Server(server, {
-  cors: corsOptions,
-  transports: ["websocket", "polling"], // Додайте явно підтримувані транспорти
-  allowEIO3: true, // Дозволити сумісність із старими версіями
+  cors: {
+    origin: "*", // Тимчасово дозволяємо всі домени для тестування
+    methods: ["GET", "POST", "OPTIONS"],
+    credentials: true,
+    allowedHeaders: ["Content-Type", "Authorization"],
+  },
+  transports: ["websocket"], // Примусово використовуємо тільки WebSockets
+  allowEIO3: true,
 });
 
-// Активні користувачі
 const activeUsers = new Map();
 
 io.on("connection", async (socket) => {
   console.log("🟢 a user connected:", socket.id);
 
-  // Обробка приєднання користувача до чату
   socket.on("join", async ({ userId, phone }) => {
     console.log(`👤 User joined: ${phone} (${userId})`);
 
-    // Зберігаємо користувача
     activeUsers.set(socket.id, { userId, phone });
 
-    // Оновлюємо в базі даних
     await User.findOneAndUpdate(
       { userId },
       { userId, phone, socketId: socket.id, lastActive: new Date() },
       { upsert: true }
     );
 
-    // Відправляємо історію повідомлень
     const history = await Message.find().sort({ timestamp: 1 }).limit(50);
     socket.emit("chat_history", history);
 
-    // Оновлюємо список користувачів для всіх
     io.emit(
       "users_update",
       Array.from(activeUsers.values()).map((user) => user.phone)
     );
   });
 
-  // Обробка нових повідомлень
   socket.on("send_message", async (data) => {
     console.log("📩 message:", data);
 
-    // Зберігаємо в базі даних
     const message = new Message({
       id: data.id,
       text: data.text,
@@ -138,11 +129,9 @@ io.on("connection", async (socket) => {
 
     await message.save();
 
-    // Відправляємо всім користувачам
     io.emit("receive_message", message);
   });
 
-  // Обробка відключення
   socket.on("disconnect", async () => {
     console.log("🔴 user disconnected", socket.id);
 
