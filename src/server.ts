@@ -42,7 +42,7 @@ mongoose
 
 // Змініть CORS налаштування:
 const corsOptions = {
-  origin: "*", // Тимчасово дозволяємо всі домени для тестування
+  origin: "https://webchat-c0fbb.web.app", // не '*'
   methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
   credentials: true,
   allowedHeaders: ["Content-Type", "Authorization", "x-requested-with"],
