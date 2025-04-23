@@ -88,8 +88,9 @@ const io = new Server(server, {
     allowedHeaders: ["Content-Type", "Authorization"],
   },
   // Дозвольте і websocket і polling:
-  transports: ["websocket", "polling"],
+  transports: ["polling"],
   allowEIO3: true,
+  upgradeTimeout: 0,  
 });
 
 const activeUsers = new Map();
