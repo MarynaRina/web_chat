@@ -52,22 +52,6 @@ app.use(cors(corsOptions));
 app.options("*", cors(corsOptions)); // Preflight для всіх маршрутів
 app.use(express.json());
 
-const corsMiddleware: RequestHandler = (req, res, next) => {
-  res.header("Access-Control-Allow-Origin", "https://webchat-c0fbb.web.app");
-  res.header("Access-Control-Allow-Methods", "GET,POST,PUT,DELETE");
-  res.header("Access-Control-Allow-Headers", "Content-Type, Authorization");
-  res.header("Access-Control-Allow-Credentials", "true");
-
-  if (req.method === "OPTIONS") {
-    res.status(200).end();
-    return;
-  }
-
-  next();
-};
-
-app.use("/", corsMiddleware);
-
 app.use("/api/auth", phoneAuthRoutes);
 
 app.get("/", (_req: Request, res: Response) => {
@@ -77,15 +61,12 @@ app.get("/", (_req: Request, res: Response) => {
 // Оновіть налаштування Socket.IO
 const io = new Server(server, {
   cors: {
-    origin: "*", // Тимчасово дозволяємо всі домени для тестування
-    methods: ["GET", "POST", "OPTIONS"],
+    origin: "https://webchat-c0fbb.web.app", 
+    methods: ["GET", "POST"],
     credentials: true,
-    allowedHeaders: ["Content-Type", "Authorization"],
   },
-  // Дозвольте і websocket і polling:
-  transports: ["polling"],
+  transports: ["websocket", "polling"],
   allowEIO3: true,
-  upgradeTimeout: 0,  
 });
 
 const activeUsers = new Map();
