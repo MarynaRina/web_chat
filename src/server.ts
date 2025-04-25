@@ -7,6 +7,8 @@ import dotenv from "dotenv";
 import { Request, Response, RequestHandler } from "express";
 import phoneAuthRoutes from "./routes/phoneAuthRoutes.js";
 import connectDB from "./config/db.js";
+import userRoutes from "./routes/userRoutes";
+
 
 dotenv.config();
 
@@ -158,3 +160,6 @@ process.on("unhandledRejection", (reason, promise) => {
 process.on("uncaughtException", (error) => {
   console.error("Uncaught Exception:", error);
 });
+
+app.use("/api/user", userRoutes);
+app.use("/uploads", express.static("uploads"));
