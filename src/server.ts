@@ -112,6 +112,10 @@ io.on("connection", async (socket) => {
     io.emit("receive_message", message);
   });
 
+  socket.on("connect", () => {
+    console.log("✅ Socket connected:", socket.id);
+  });
+
   socket.on("disconnect", async () => {
     console.log("🔴 user disconnected", socket.id);
 
@@ -133,6 +137,7 @@ io.on("connection", async (socket) => {
     }
   });
 });
+
 
 // REST API для авторизації і перевірки статусу
 app.get("/api/users/online", (_req: Request, res: Response) => {
