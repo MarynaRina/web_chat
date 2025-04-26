@@ -1,17 +1,24 @@
-import mongoose, { Document, Schema } from 'mongoose';
+// src/models/User.ts
+import mongoose, { Schema, Document } from "mongoose";
 
+// Інтерфейс для типізації
 export interface IUser extends Document {
+  userId: string;
   phone: string;
-  verificationCode: string;
-  name?: string;
+  socketId: string;
+  lastActive: Date;
+  username: string;
   avatarUrl?: string;
 }
 
-const UserSchema = new Schema<IUser>({
-  phone: { type: String, required: true, unique: true },
-  verificationCode: { type: String, required: true },
-  name: { type: String },
+// Схема користувача
+const userSchema: Schema = new Schema({
+  userId: { type: String, required: true },
+  phone: { type: String, required: true },
+  socketId: { type: String },
+  lastActive: { type: Date },
+  username: { type: String, required: true },
   avatarUrl: { type: String },
-}, { timestamps: true });
+});
 
-export default mongoose.model<IUser>('User', UserSchema);
+export default mongoose.model<IUser>("User", userSchema);

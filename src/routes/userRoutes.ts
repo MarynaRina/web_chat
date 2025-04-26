@@ -1,44 +1,24 @@
-import express from "express";
-import multer from "multer";
-import path from "path";
-import User from "../models/User.js"; // схема користувача
-import fs from "fs";
+// src/routes/userRoutes.ts
+import express, { Request, Response } from "express";
+import User from "../models/User"; // Імпортуємо модель User
 
 const router = express.Router();
 
-// Тимчасове збереження аватарки
-const storage = multer.diskStorage({
-  destination: "uploads/",
-  filename: (_, file, cb) => {
-    const ext = path.extname(file.originalname);
-    cb(null, Date.now() + ext);
-  },
-});
-const upload = multer({ storage });
-
-router.post("/setup", upload.single("avatar"), async (req, res) => {
-  const { userId, name } = req.body;
-  const avatarPath = req.file?.path;
-
-  if (!userId || !name || !avatarPath) {
-    res.status(400).json({ error: "Missing fields" });
-    return;
-  }
-
+// Отримання профілю користувача
+router.get("/:id", async (req: Request, res: Response): Promise<void> => {
   try {
-    await User.findOneAndUpdate(
-      { userId },
-      {
-        name,
-        avatar: avatarPath,
-      },
-      { upsert: true }
-    );
-
-    res.json({ success: true });
-  } catch (err) {
-    console.error("Failed to save user:", err);
-    res.status(500).json({ error: "Server error" });
+    const user = await User.findOne({ userId: req.params.id });
+    if (!user) {
+      res.status(404).json({ message: "User not found" });
+      return;
+    }
+    res.status(200).json({
+      username: user.username,
+      avatarUrl: user.avatarUrl,
+    });
+  } catch (error) {
+    console.error("Error fetching user:", error);
+    res.status(500).json({ message: "Server error" });
   }
 });
 

@@ -1,69 +1,51 @@
-import express from "express";
+import express, { Request, Response } from "express";
 import { createServer } from "http";
 import { Server } from "socket.io";
 import cors from "cors";
-import mongoose from "mongoose";
 import dotenv from "dotenv";
-import { Request, Response, RequestHandler } from "express";
 import phoneAuthRoutes from "./routes/phoneAuthRoutes.js";
 import connectDB from "./config/db.js";
 import userRoutes from "./routes/userRoutes";
+import multer from "multer";
+import path from "path";
+import Message from "./models/Message"; // Імпортуємо модель Message
+import User from "./models/User"; // Імпортуємо модель User
+import { ActiveUser } from "./types/activeUser"; // Імпортуємо інтерфейс ActiveUser
 
+// Налаштування multer для збереження файлів
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    cb(null, "uploads/");
+  },
+  filename: (req, file, cb) => {
+    const uniqueSuffix = Date.now() + "-" + Math.round(Math.random() * 1e9);
+    cb(null, uniqueSuffix + path.extname(file.originalname));
+  },
+});
+
+const upload = multer({ storage });
 
 dotenv.config();
-
-// Схема для повідомлень
-const messageSchema = new mongoose.Schema({
-  id: String,
-  text: String,
-  sender: String,
-  senderName: String,
-  timestamp: Date,
-});
-
-const Message = mongoose.model("Message", messageSchema);
-
-// Схема для користувачів
-const userSchema = new mongoose.Schema({
-  userId: String,
-  phone: String,
-  socketId: String,
-  lastActive: Date,
-});
-
-const User = mongoose.model("User", userSchema);
 
 const app = express();
 const server = createServer(app);
 
-// Підключення до MongoDB через змінну середовища
-mongoose
-  .connect(process.env.MONGODB_URI || "mongodb://localhost:27017/web_chat")
-  .then(() => console.log("✅ MongoDB успішно підключено"))
-  .catch((err) => console.error("❌ Помилка підключення до MongoDB:", err));
-
-// Змініть CORS налаштування:
+// CORS налаштування
 const corsOptions = {
-  origin: "https://webchat-c0fbb.web.app", // не '*'
+  origin: "https://webchat-c0fbb.web.app",
   methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
   credentials: true,
-  allowedHeaders: ["Content-Type", "Authorization", "x-requested-with"],
+  allowedHeaders: ["Content-Type", "Authorization", "x-requested-with", "Accept"],
 };
 
 app.use(cors(corsOptions));
-app.options("*", cors(corsOptions)); // Preflight для всіх маршрутів
+app.options("*", cors(corsOptions));
 app.use(express.json());
 
-app.use("/api/auth", phoneAuthRoutes);
-
-app.get("/", (_req: Request, res: Response) => {
-  res.send("Chat Server API is running!");
-});
-
-// Оновіть налаштування Socket.IO
+// Налаштування Socket.IO
 const io = new Server(server, {
   cors: {
-    origin: "https://webchat-c0fbb.web.app", 
+    origin: "https://webchat-c0fbb.web.app",
     methods: ["GET", "POST"],
     credentials: true,
   },
@@ -71,7 +53,7 @@ const io = new Server(server, {
   allowEIO3: true,
 });
 
-const activeUsers = new Map();
+const activeUsers = new Map<string, ActiveUser>();
 
 io.on("connection", async (socket) => {
   console.log("🟢 a user connected:", socket.id);
@@ -112,16 +94,11 @@ io.on("connection", async (socket) => {
     io.emit("receive_message", message);
   });
 
-  socket.on("connect", () => {
-    console.log("✅ Socket connected:", socket.id);
-  });
-
   socket.on("disconnect", async () => {
     console.log("🔴 user disconnected", socket.id);
 
     const user = activeUsers.get(socket.id);
     if (user) {
-      // Оновлюємо в базі даних
       await User.findOneAndUpdate(
         { socketId: socket.id },
         { lastActive: new Date() }
@@ -129,7 +106,6 @@ io.on("connection", async (socket) => {
 
       activeUsers.delete(socket.id);
 
-      // Оновлюємо список користувачів для всіх
       io.emit(
         "users_update",
         Array.from(activeUsers.values()).map((user) => user.phone)
@@ -138,7 +114,6 @@ io.on("connection", async (socket) => {
   });
 });
 
-
 // REST API для авторизації і перевірки статусу
 app.get("/api/users/online", (_req: Request, res: Response) => {
   res.json({
@@ -146,15 +121,54 @@ app.get("/api/users/online", (_req: Request, res: Response) => {
   });
 });
 
+// Маршрут для /api/users/setup
+app.post("/api/users/setup", upload.single("avatar"), async (req: Request & { file?: Express.Multer.File }, res: Response) => {
+  try {
+    const { username, userId } = req.body;
+    const file = req.file;
+
+    if (!username || !userId || !file) {
+      res.status(400).json({ message: "Missing required fields: username, userId, or avatar" });
+      return;
+    }
+
+    const avatarUrl = `/uploads/${file.filename}`;
+
+    await User.findOneAndUpdate(
+      { userId },
+      { username, avatarUrl },
+      { upsert: true }
+    );
+
+    res.status(200).json({ success: true, avatarUrl });
+  } catch (error) {
+    console.error("Error in /api/users/setup:", error);
+    res.status(500).json({ message: "Server error" });
+  }
+});
+
+app.get("/", (_req: Request, res: Response) => {
+  res.send("Chat Server API is running!");
+});
+
+app.use("/api/auth", phoneAuthRoutes);
+app.use("/api/user", userRoutes);
+app.use("/uploads", express.static("uploads"));
+
+// Middleware для обробки помилок
+app.use((err: any, req: Request, res: Response, next: Function) => {
+  console.error("Server error:", err);
+  res.status(500).json({ message: "Something went wrong on the server" });
+});
+
 // Використання порту з змінних середовища
 const PORT = process.env.PORT || 3001;
 
-// Підключення до бази даних
-connectDB();
-
-// Запуск сервера
-server.listen(PORT, () => {
-  console.log(`🚀 Server running on port ${PORT}`);
+// Підключення до бази даних і запуск сервера
+connectDB().then(() => {
+  server.listen(PORT, () => {
+    console.log(`🚀 Server running on port ${PORT}`);
+  });
 });
 
 // Обробка неперехоплених помилок
@@ -166,5 +180,3 @@ process.on("uncaughtException", (error) => {
   console.error("Uncaught Exception:", error);
 });
 
-app.use("/api/user", userRoutes);
-app.use("/uploads", express.static("uploads"));
