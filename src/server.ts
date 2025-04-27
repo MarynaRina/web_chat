@@ -11,6 +11,16 @@ import path from "path";
 import Message from "./models/Message"; // Імпортуємо модель Message
 import User from "./models/User"; // Імпортуємо модель User
 import { ActiveUser } from "./types/activeUser"; // Імпортуємо інтерфейс ActiveUser
+import { v2 as cloudinary } from 'cloudinary';
+
+dotenv.config();
+
+// Налаштування Cloudinary
+cloudinary.config({
+  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+  api_key: process.env.CLOUDINARY_API_KEY,
+  api_secret: process.env.CLOUDINARY_API_SECRET,
+});
 
 // Налаштування multer для збереження файлів
 const storage = multer.diskStorage({
@@ -128,11 +138,13 @@ app.post("/api/users/setup", upload.single("avatar"), async (req: Request & { fi
     const file = req.file;
 
     if (!username || !userId || !file) {
-      res.status(400).json({ message: "Missing required fields: username, userId, or avatar" });
+      res.status(400).json({ message: 'Missing required fields: username, userId, or avatar' });
       return;
     }
 
-    const avatarUrl = `/uploads/${file.filename}`;
+    // Завантаження файлу на Cloudinary
+    const result = await cloudinary.uploader.upload(file.path);
+    const avatarUrl = result.secure_url;
 
     await User.findOneAndUpdate(
       { userId },
@@ -142,8 +154,8 @@ app.post("/api/users/setup", upload.single("avatar"), async (req: Request & { fi
 
     res.status(200).json({ success: true, avatarUrl });
   } catch (error) {
-    console.error("Error in /api/users/setup:", error);
-    res.status(500).json({ message: "Server error" });
+    console.error('Error in /api/users/setup:', error);
+    res.status(500).json({ message: 'Server error' });
   }
 });
 
