@@ -1,4 +1,6 @@
 import express from "express";
+import { createServer } from "http";
+import { Server } from "socket.io";
 import dotenv from "dotenv";
 import { v2 as cloudinary } from "cloudinary";
 import cors from "cors";
@@ -9,6 +11,8 @@ import multer from "multer";
 import path from "path";
 import { Request, Response } from "express";
 import User from "./models/User";
+import Message from "./models/Message";
+import { ActiveUser } from "./types/activeUser";
 
 console.log("Starting server.js... THIS IS THE FIRST LOG");
 
@@ -31,9 +35,74 @@ cloudinary.config({
 console.log("✅ Cloudinary configured");
 
 const app = express();
-console.log("Express app created");
+const server = createServer(app);
+console.log("Express app and HTTP server created");
 
 const PORT = process.env.PORT || 3001;
+
+// Socket.IO config
+const io = new Server(server, {
+  cors: {
+    origin: "https://webchat-c0fbb.web.app",
+    methods: ["GET", "POST"],
+    credentials: true,
+  },
+  transports: ["websocket", "polling"],
+  allowEIO3: true,
+});
+console.log("Socket.IO configured");
+
+const activeUsers = new Map<string, ActiveUser>();
+
+io.on("connection", (socket) => {
+  console.log("🟢 User connected:", socket.id);
+
+  socket.on("join", async ({ userId, phone }) => {
+    activeUsers.set(socket.id, { userId, phone });
+
+    await User.findOneAndUpdate(
+      { userId },
+      { userId, phone, socketId: socket.id, lastActive: new Date() },
+      { upsert: true }
+    );
+
+    const history = await Message.find().sort({ timestamp: 1 }).limit(50);
+    socket.emit("chat_history", history);
+
+    io.emit(
+      "users_update",
+      Array.from(activeUsers.values()).map((u) => u.phone)
+    );
+  });
+
+  socket.on("send_message", async (data) => {
+    const message = new Message({
+      id: data.id,
+      text: data.text,
+      sender: data.sender,
+      senderName: data.senderName,
+      timestamp: new Date(),
+    });
+    await message.save();
+    io.emit("receive_message", message);
+  });
+
+  socket.on("disconnect", async () => {
+    const user = activeUsers.get(socket.id);
+    if (user) {
+      await User.findOneAndUpdate(
+        { socketId: socket.id },
+        { lastActive: new Date() }
+      );
+      activeUsers.delete(socket.id);
+      io.emit(
+        "users_update",
+        Array.from(activeUsers.values()).map((u) => u.phone)
+      );
+    }
+    console.log("🔴 User disconnected:", socket.id);
+  });
+});
 
 // Multer config
 const storage = multer.diskStorage({
@@ -109,7 +178,7 @@ app.get("/", (_req, res) => {
 
 connectDB().then(() => {
   console.log("MongoDB connected");
-  app.listen(PORT, () => {
+  server.listen(PORT, () => {
     console.log(`🚀 Server running on port ${PORT}`);
   });
 });
