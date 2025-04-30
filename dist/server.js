@@ -9,6 +9,7 @@ const cloudinary_1 = require("cloudinary");
 const cors_1 = __importDefault(require("cors"));
 const phoneAuthRoutes_1 = __importDefault(require("./routes/phoneAuthRoutes"));
 const userRoutes_1 = __importDefault(require("./routes/userRoutes"));
+const db_1 = __importDefault(require("./config/db"));
 console.log("Starting server.js... THIS IS THE FIRST LOG");
 dotenv_1.default.config();
 console.log("✅ Environment variables loaded");
@@ -38,5 +39,11 @@ app.get("/", (_req, res) => {
 });
 app.listen(PORT, () => {
     console.log(`🚀 Server running on port ${PORT}`);
+});
+(0, db_1.default)().then(() => {
+    console.log("MongoDB connected");
+    app.listen(PORT, () => {
+        console.log(`🚀 Server running on port ${PORT}`);
+    });
 });
 //# sourceMappingURL=server.js.map

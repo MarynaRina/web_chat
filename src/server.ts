@@ -4,6 +4,7 @@ import { v2 as cloudinary } from "cloudinary";
 import cors from "cors";
 import phoneAuthRoutes from "./routes/phoneAuthRoutes";
 import userRoutes from "./routes/userRoutes";
+import connectDB from "./config/db";
 
 console.log("Starting server.js... THIS IS THE FIRST LOG");
 
@@ -45,4 +46,11 @@ app.get("/", (_req, res) => {
 
 app.listen(PORT, () => {
   console.log(`🚀 Server running on port ${PORT}`);
+});
+
+connectDB().then(() => {
+  console.log("MongoDB connected");
+  app.listen(PORT, () => {
+    console.log(`🚀 Server running on port ${PORT}`);
+  });
 });
