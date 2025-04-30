@@ -3,6 +3,7 @@ import dotenv from "dotenv";
 import { v2 as cloudinary } from "cloudinary";
 import cors from "cors";
 import phoneAuthRoutes from "./routes/phoneAuthRoutes";
+import userRoutes from "./routes/userRoutes";
 
 console.log("Starting server.js... THIS IS THE FIRST LOG");
 
@@ -34,6 +35,9 @@ console.log("CORS configured");
 
 app.use("/api/auth", phoneAuthRoutes);
 console.log("Phone auth routes configured");
+
+app.use("/api/users", userRoutes);
+console.log("User routes configured");
 
 app.get("/", (_req, res) => {
   res.send("Chat Server API is running!");
