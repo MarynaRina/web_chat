@@ -2,6 +2,7 @@ import express from "express";
 import dotenv from "dotenv";
 import { v2 as cloudinary } from "cloudinary";
 import cors from "cors";
+import phoneAuthRoutes from "./routes/phoneAuthRoutes";
 
 console.log("Starting server.js... THIS IS THE FIRST LOG");
 
@@ -30,6 +31,9 @@ const PORT = process.env.PORT || 3001;
 
 app.use(cors({ origin: "https://webchat-c0fbb.web.app", credentials: true }));
 console.log("CORS configured");
+
+app.use("/api/auth", phoneAuthRoutes);
+console.log("Phone auth routes configured");
 
 app.get("/", (_req, res) => {
   res.send("Chat Server API is running!");
