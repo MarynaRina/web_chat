@@ -172,6 +172,12 @@ app.post(
 );
 console.log("Profile setup route configured");
 
+// Get online users
+app.get("/api/users/online", (_req: Request, res: Response) => {
+  res.json({ users: Array.from(activeUsers.values()) });
+});
+console.log("Online users route configured");
+
 app.get("/", (_req, res) => {
   res.send("Chat Server API is running!");
 });

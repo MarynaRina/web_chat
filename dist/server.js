@@ -136,6 +136,11 @@ app.post("/api/users/setup", upload.single("avatar"), (req, res) => __awaiter(vo
     }
 }));
 console.log("Profile setup route configured");
+// Get online users
+app.get("/api/users/online", (_req, res) => {
+    res.json({ users: Array.from(activeUsers.values()) });
+});
+console.log("Online users route configured");
 app.get("/", (_req, res) => {
     res.send("Chat Server API is running!");
 });
