@@ -13,6 +13,7 @@ import { Request, Response } from "express";
 import User from "./models/User";
 import Message from "./models/Message";
 import { ActiveUser } from "./types/activeUser";
+import fs from "fs";
 
 console.log("Starting server.js... THIS IS THE FIRST LOG");
 
@@ -105,10 +106,16 @@ io.on("connection", (socket) => {
 });
 
 // Multer config
+if (!fs.existsSync("uploads")) {
+  fs.mkdirSync("uploads");
+  console.log("Created uploads directory");
+}
 const storage = multer.diskStorage({
   destination: (_req, _file, cb) => cb(null, "uploads/"),
   filename: (_req, file, cb) => {
-    const uniqueName = `${Date.now()}-${Math.round(Math.random() * 1e9)}${path.extname(file.originalname)}`;
+    const uniqueName = `${Date.now()}-${Math.round(
+      Math.random() * 1e9
+    )}${path.extname(file.originalname)}`;
     cb(null, uniqueName);
   },
 });
@@ -138,10 +145,22 @@ app.post(
   upload.single("avatar"),
   async (req: Request & { file?: Express.Multer.File }, res: Response) => {
     try {
+      console.log("Received /api/users/setup request");
+      console.log("Request body:", req.body);
+      console.log("Uploaded file:", req.file);
+
       const { username, userId } = req.body;
       const file = req.file;
 
       if (!username || !userId || !file) {
+        console.log(
+          "Missing fields - username:",
+          username,
+          "userId:",
+          userId,
+          "file:",
+          file
+        );
         res.status(400).json({
           success: false,
           message: "Missing required fields: username, userId, or avatar",
@@ -149,14 +168,18 @@ app.post(
         return;
       }
 
+      console.log("Uploading to Cloudinary...");
       const uploadResult = await cloudinary.uploader.upload(file.path);
+      console.log("Cloudinary upload result:", uploadResult);
       const avatarUrl = uploadResult.secure_url;
 
+      console.log("Updating user in MongoDB...");
       const updatedUser = await User.findOneAndUpdate(
         { userId },
         { username, avatarUrl },
         { upsert: true, new: true }
       );
+      console.log("Updated user:", updatedUser);
 
       console.log("✅ Profile updated for:", userId);
       res.status(200).json({ success: true, avatarUrl });
@@ -182,7 +205,12 @@ app.get("/api/users/online", (_req: Request, res: Response) => {
     res.json({ users });
   } catch (error: any) {
     console.error("Error in /api/users/online:", error);
-    res.status(500).json({ message: "Server error in /api/users/online", error: error.message });
+    res
+      .status(500)
+      .json({
+        message: "Server error in /api/users/online",
+        error: error.message,
+      });
   }
 });
 console.log("Online users route configured");
