@@ -138,7 +138,17 @@ app.post("/api/users/setup", upload.single("avatar"), (req, res) => __awaiter(vo
 console.log("Profile setup route configured");
 // Get online users
 app.get("/api/users/online", (_req, res) => {
-    res.json({ users: Array.from(activeUsers.values()) });
+    try {
+        console.log("Handling /api/users/online request...");
+        console.log("Active users:", activeUsers);
+        const users = Array.from(activeUsers.values());
+        console.log("Users array:", users);
+        res.json({ users });
+    }
+    catch (error) {
+        console.error("Error in /api/users/online:", error);
+        res.status(500).json({ message: "Server error in /api/users/online", error: error.message });
+    }
 });
 console.log("Online users route configured");
 app.get("/", (_req, res) => {
