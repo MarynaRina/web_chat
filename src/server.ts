@@ -11,17 +11,21 @@ import path from "path";
 import Message from "./models/Message";
 import User from "./models/User";
 import { ActiveUser } from "./types/activeUser";
-import { v2 as cloudinary } from 'cloudinary';
-
-console.log("Starting server.js..."); // Логування на самому початку
+import { v2 as cloudinary } from "cloudinary";
 
 dotenv.config();
-console.log("dotenv loaded");
+console.log("✅ Environment variables loaded");
 
-if (!process.env.CLOUDINARY_CLOUD_NAME || !process.env.CLOUDINARY_API_KEY || !process.env.CLOUDINARY_API_SECRET) {
+// Cloudinary config check
+if (
+  !process.env.CLOUDINARY_CLOUD_NAME ||
+  !process.env.CLOUDINARY_API_KEY ||
+  !process.env.CLOUDINARY_API_SECRET
+) {
   console.error("❌ Cloudinary configuration missing");
   process.exit(1);
 }
+
 cloudinary.config({
   cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
   api_key: process.env.CLOUDINARY_API_KEY,
@@ -30,37 +34,38 @@ cloudinary.config({
 console.log("✅ Cloudinary configured");
 
 const app = express();
-console.log("Express app created");
-
 const server = createServer(app);
-console.log("HTTP server created");
 
-// CORS налаштування
+// CORS config
 const corsOptions = {
-  origin: "https://webchat-c0fbb.web.app",
+  origin: ["https://webchat-c0fbb.web.app", "http://localhost:5173"],
   methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
   credentials: true,
-  allowedHeaders: ["Content-Type", "Authorization", "x-requested-with", "Accept"],
+  allowedHeaders: [
+    "Content-Type",
+    "Authorization",
+    "x-requested-with",
+    "Accept",
+  ],
 };
+
 app.use(cors(corsOptions));
 app.options("*", cors(corsOptions));
 app.use(express.json());
-console.log("Middleware configured");
 
-// Налаштування Multer
+// Multer config
 const storage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    cb(null, "uploads/");
-  },
-  filename: (req, file, cb) => {
-    const uniqueSuffix = Date.now() + "-" + Math.round(Math.random() * 1e9);
-    cb(null, uniqueSuffix + path.extname(file.originalname));
+  destination: (_req, _file, cb) => cb(null, "uploads/"),
+  filename: (_req, file, cb) => {
+    const uniqueName = `${Date.now()}-${Math.round(
+      Math.random() * 1e9
+    )}${path.extname(file.originalname)}`;
+    cb(null, uniqueName);
   },
 });
 const upload = multer({ storage });
-console.log("Multer configured");
 
-// Налаштування Socket.IO
+// Socket.IO config
 const io = new Server(server, {
   cors: {
     origin: "https://webchat-c0fbb.web.app",
@@ -70,15 +75,13 @@ const io = new Server(server, {
   transports: ["websocket", "polling"],
   allowEIO3: true,
 });
-console.log("Socket.IO configured");
 
 const activeUsers = new Map<string, ActiveUser>();
 
-io.on("connection", async (socket) => {
-  console.log("🟢 a user connected:", socket.id);
+io.on("connection", (socket) => {
+  console.log("🟢 User connected:", socket.id);
 
   socket.on("join", async ({ userId, phone }) => {
-    console.log(`👤 User joined: ${phone} (${userId})`);
     activeUsers.set(socket.id, { userId, phone });
 
     await User.findOneAndUpdate(
@@ -92,12 +95,11 @@ io.on("connection", async (socket) => {
 
     io.emit(
       "users_update",
-      Array.from(activeUsers.values()).map((user) => user.phone)
+      Array.from(activeUsers.values()).map((u) => u.phone)
     );
   });
 
   socket.on("send_message", async (data) => {
-    console.log("📩 message:", data);
     const message = new Message({
       id: data.id,
       text: data.text,
@@ -110,7 +112,6 @@ io.on("connection", async (socket) => {
   });
 
   socket.on("disconnect", async () => {
-    console.log("🔴 user disconnected", socket.id);
     const user = activeUsers.get(socket.id);
     if (user) {
       await User.findOneAndUpdate(
@@ -120,88 +121,85 @@ io.on("connection", async (socket) => {
       activeUsers.delete(socket.id);
       io.emit(
         "users_update",
-        Array.from(activeUsers.values()).map((user) => user.phone)
+        Array.from(activeUsers.values()).map((u) => u.phone)
       );
     }
+    console.log("🔴 User disconnected:", socket.id);
   });
 });
 
-// REST API для авторизації і перевірки статусу
+// Get online users
 app.get("/api/users/online", (_req: Request, res: Response) => {
-  res.json({
-    users: Array.from(activeUsers.values()),
-  });
+  res.json({ users: Array.from(activeUsers.values()) });
 });
 
-// Маршрут для /api/users/setup
-app.post("/api/users/setup", upload.single("avatar"), async (req: Request & { file?: Express.Multer.File }, res: Response) => {
-  try {
-    const { username, userId } = req.body;
-    const file = req.file;
+// Profile setup route
+app.post(
+  "/api/users/setup",
+  upload.single("avatar"),
+  async (req: Request & { file?: Express.Multer.File }, res: Response) => {
+    try {
+      const { username, userId } = req.body;
+      const file = req.file;
 
-    if (!username || !userId || !file) {
-      res.status(400).json({ message: 'Missing required fields: username, userId, or avatar' });
-      return;
+      if (!username || !userId || !file) {
+        res.status(400).json({
+          success: false,
+          message: "Missing required fields: username, userId, or avatar",
+        });
+        return;
+      }
+
+      const uploadResult = await cloudinary.uploader.upload(file.path);
+      const avatarUrl = uploadResult.secure_url;
+
+      const updatedUser = await User.findOneAndUpdate(
+        { userId },
+        { username, avatarUrl },
+        { upsert: true, new: true }
+      );
+
+      console.log("✅ Profile updated for:", userId);
+      res.status(200).json({ success: true, avatarUrl });
+    } catch (error: any) {
+      console.error("❌ Error in /api/users/setup:", error.message || error);
+      res.status(500).json({
+        success: false,
+        message: "Server error",
+        error: error.message || "Unknown error",
+      });
     }
-
-    const result = await cloudinary.uploader.upload(file.path);
-    const avatarUrl = result.secure_url;
-
-    await User.findOneAndUpdate(
-      { userId },
-      { username, avatarUrl },
-      { upsert: true }
-    );
-
-    res.status(200).json({ success: true, avatarUrl });
-  } catch (error) {
-    console.error('Error in /api/users/setup:', error);
-    res.status(500).json({ message: 'Server error' });
   }
-});
+);
 
+// Health check
 app.get("/", (_req: Request, res: Response) => {
   res.send("Chat Server API is running!");
 });
 
+// API Routes
 app.use("/api/auth", phoneAuthRoutes);
 app.use("/api/user", userRoutes);
 app.use("/uploads", express.static("uploads"));
-console.log("Routes configured");
 
-// Middleware для обробки помилок
-app.use((err: any, req: Request, res: Response, next: Function) => {
-  console.error("Server error:", err);
-  res.status(500).json({ message: "Something went wrong on the server" });
+// Global error handler
+app.use((err: any, _req: Request, res: Response, _next: Function) => {
+  console.error("❌ Global Error Handler:", err);
+  res.status(500).json({ message: "Server error" });
 });
 
-// Використання порту з змінних середовища
+// DB + server init
 const PORT = process.env.PORT || 3001;
+connectDB().then(() => {
+  server.listen(PORT, () => {
+    console.log(`🚀 Server running on port ${PORT}`);
+  });
+});
 
-// Підключення до бази даних і запуск сервера
-const startServer = async () => {
-  try {
-    console.log("Attempting to start server...");
-    await connectDB();
-    console.log("connectDB completed");
-
-    server.listen(PORT, () => {
-      console.log(`🚀 Server running on port ${PORT}`);
-    });
-    console.log("Server listen called");
-  } catch (error) {
-    console.error("Failed to start server:", error);
-    process.exit(1);
-  }
-};
-
-startServer();
-
-// Обробка неперехоплених помилок
+// Unhandled error protection
 process.on("unhandledRejection", (reason, promise) => {
   console.error("Unhandled Rejection at:", promise, "reason:", reason);
 });
-
 process.on("uncaughtException", (error) => {
   console.error("Uncaught Exception:", error);
 });

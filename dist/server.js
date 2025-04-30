@@ -22,30 +22,26 @@ const db_js_1 = __importDefault(require("./config/db.js"));
 const userRoutes_1 = __importDefault(require("./routes/userRoutes"));
 const multer_1 = __importDefault(require("multer"));
 const path_1 = __importDefault(require("path"));
-const Message_1 = __importDefault(require("./models/Message")); // Імпортуємо модель Message
-const User_1 = __importDefault(require("./models/User")); // Імпортуємо модель User
+const Message_1 = __importDefault(require("./models/Message"));
+const User_1 = __importDefault(require("./models/User"));
 const cloudinary_1 = require("cloudinary");
+console.log("Starting server.js..."); // Логування на самому початку
 dotenv_1.default.config();
-// Налаштування Cloudinary
+console.log("dotenv loaded");
+if (!process.env.CLOUDINARY_CLOUD_NAME || !process.env.CLOUDINARY_API_KEY || !process.env.CLOUDINARY_API_SECRET) {
+    console.error("❌ Cloudinary configuration missing");
+    process.exit(1);
+}
 cloudinary_1.v2.config({
     cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
     api_key: process.env.CLOUDINARY_API_KEY,
     api_secret: process.env.CLOUDINARY_API_SECRET,
 });
-// Налаштування multer для збереження файлів
-const storage = multer_1.default.diskStorage({
-    destination: (req, file, cb) => {
-        cb(null, "uploads/");
-    },
-    filename: (req, file, cb) => {
-        const uniqueSuffix = Date.now() + "-" + Math.round(Math.random() * 1e9);
-        cb(null, uniqueSuffix + path_1.default.extname(file.originalname));
-    },
-});
-const upload = (0, multer_1.default)({ storage });
-dotenv_1.default.config();
+console.log("✅ Cloudinary configured");
 const app = (0, express_1.default)();
+console.log("Express app created");
 const server = (0, http_1.createServer)(app);
+console.log("HTTP server created");
 // CORS налаштування
 const corsOptions = {
     origin: "https://webchat-c0fbb.web.app",
@@ -56,6 +52,19 @@ const corsOptions = {
 app.use((0, cors_1.default)(corsOptions));
 app.options("*", (0, cors_1.default)(corsOptions));
 app.use(express_1.default.json());
+console.log("Middleware configured");
+// Налаштування Multer
+const storage = multer_1.default.diskStorage({
+    destination: (req, file, cb) => {
+        cb(null, "uploads/");
+    },
+    filename: (req, file, cb) => {
+        const uniqueSuffix = Date.now() + "-" + Math.round(Math.random() * 1e9);
+        cb(null, uniqueSuffix + path_1.default.extname(file.originalname));
+    },
+});
+const upload = (0, multer_1.default)({ storage });
+console.log("Multer configured");
 // Налаштування Socket.IO
 const io = new socket_io_1.Server(server, {
     cors: {
@@ -66,6 +75,7 @@ const io = new socket_io_1.Server(server, {
     transports: ["websocket", "polling"],
     allowEIO3: true,
 });
+console.log("Socket.IO configured");
 const activeUsers = new Map();
 io.on("connection", (socket) => __awaiter(void 0, void 0, void 0, function* () {
     console.log("🟢 a user connected:", socket.id);
@@ -114,7 +124,6 @@ app.post("/api/users/setup", upload.single("avatar"), (req, res) => __awaiter(vo
             res.status(400).json({ message: 'Missing required fields: username, userId, or avatar' });
             return;
         }
-        // Завантаження файлу на Cloudinary
         const result = yield cloudinary_1.v2.uploader.upload(file.path);
         const avatarUrl = result.secure_url;
         yield User_1.default.findOneAndUpdate({ userId }, { username, avatarUrl }, { upsert: true });
@@ -131,6 +140,7 @@ app.get("/", (_req, res) => {
 app.use("/api/auth", phoneAuthRoutes_js_1.default);
 app.use("/api/user", userRoutes_1.default);
 app.use("/uploads", express_1.default.static("uploads"));
+console.log("Routes configured");
 // Middleware для обробки помилок
 app.use((err, req, res, next) => {
     console.error("Server error:", err);
@@ -139,11 +149,22 @@ app.use((err, req, res, next) => {
 // Використання порту з змінних середовища
 const PORT = process.env.PORT || 3001;
 // Підключення до бази даних і запуск сервера
-(0, db_js_1.default)().then(() => {
-    server.listen(PORT, () => {
-        console.log(`🚀 Server running on port ${PORT}`);
-    });
+const startServer = () => __awaiter(void 0, void 0, void 0, function* () {
+    try {
+        console.log("Attempting to start server...");
+        yield (0, db_js_1.default)();
+        console.log("connectDB completed");
+        server.listen(PORT, () => {
+            console.log(`🚀 Server running on port ${PORT}`);
+        });
+        console.log("Server listen called");
+    }
+    catch (error) {
+        console.error("Failed to start server:", error);
+        process.exit(1);
+    }
 });
+startServer();
 // Обробка неперехоплених помилок
 process.on("unhandledRejection", (reason, promise) => {
     console.error("Unhandled Rejection at:", promise, "reason:", reason);
