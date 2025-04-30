@@ -5,6 +5,8 @@ import cors from "cors";
 import phoneAuthRoutes from "./routes/phoneAuthRoutes";
 import userRoutes from "./routes/userRoutes";
 import connectDB from "./config/db";
+import multer from "multer";
+import path from "path";
 
 console.log("Starting server.js... THIS IS THE FIRST LOG");
 
@@ -31,9 +33,28 @@ console.log("Express app created");
 
 const PORT = process.env.PORT || 3001;
 
+// Multer config
+const storage = multer.diskStorage({
+  destination: (_req, _file, cb) => cb(null, "uploads/"),
+  filename: (_req, file, cb) => {
+    const uniqueName = `${Date.now()}-${Math.round(Math.random() * 1e9)}${path.extname(file.originalname)}`;
+    cb(null, uniqueName);
+  },
+});
+const upload = multer({ storage });
+console.log("Multer configured");
+
+// Middleware
 app.use(cors({ origin: "https://webchat-c0fbb.web.app", credentials: true }));
 console.log("CORS configured");
 
+app.use(express.json());
+console.log("JSON parsing configured");
+
+app.use("/uploads", express.static("uploads"));
+console.log("Static uploads folder configured");
+
+// Routes
 app.use("/api/auth", phoneAuthRoutes);
 console.log("Phone auth routes configured");
 
@@ -42,10 +63,6 @@ console.log("User routes configured");
 
 app.get("/", (_req, res) => {
   res.send("Chat Server API is running!");
-});
-
-app.listen(PORT, () => {
-  console.log(`🚀 Server running on port ${PORT}`);
 });
 
 connectDB().then(() => {
