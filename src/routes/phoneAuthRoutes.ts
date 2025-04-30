@@ -1,4 +1,4 @@
-import { Router, Response, NextFunction } from 'express';
+import { Router, Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
 import dotenv from 'dotenv';
 import User from '../models/User';
@@ -13,8 +13,7 @@ const generateCode = (): string => {
   return Math.floor(100000 + Math.random() * 900000).toString();
 };
 
-// Видаляємо повернення результату, щоб відповідати типу RequestHandler
-const sendCode = async (req: any, res: Response): Promise<void> => {
+const sendCode = async (req: Request, res: Response): Promise<void> => {
   const { phone } = req.body;
   if (!phone) {
     res.status(400).json({ message: 'Phone number is required' });
@@ -28,8 +27,7 @@ const sendCode = async (req: any, res: Response): Promise<void> => {
   res.json({ message: 'Code sent successfully' });
 };
 
-// Видаляємо повернення результату, щоб відповідати типу RequestHandler
-const verifyCode = async (req: any, res: Response): Promise<void> => {
+const verifyCode = async (req: Request, res: Response): Promise<void> => {
   const { phone, code } = req.body;
   if (!phone || !code) {
     res.status(400).json({ message: 'Phone and code required' });
@@ -47,9 +45,14 @@ const verifyCode = async (req: any, res: Response): Promise<void> => {
     user = await User.create({ phone });
   }
 
+  if (!process.env.JWT_SECRET) {
+    res.status(500).json({ message: 'JWT_SECRET is not defined' });
+    return;
+  }
+
   const token = jwt.sign(
     { userId: user._id },
-    process.env.JWT_SECRET as string,
+    process.env.JWT_SECRET,
     { expiresIn: '7d' }
   );
 
@@ -60,12 +63,10 @@ const verifyCode = async (req: any, res: Response): Promise<void> => {
 router.post('/send-code', sendCode);
 router.post('/verify-code', verifyCode);
 
-// Виправлення обробника для /me
 router.get('/me', auth, async (req: AuthRequest, res: Response, next: NextFunction): Promise<void> => {
   try {
     const userId = req.user?.userId;
     
-    // Виправлення .status() на правильний метод
     const user = await User.findById(userId);
     
     if (!user) {

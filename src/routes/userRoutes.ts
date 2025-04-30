@@ -1,13 +1,11 @@
-// src/routes/userRoutes.ts
-import express, { Request, Response } from "express";
-import User from "../models/User"; // Імпортуємо модель User
+import express, { Request, Response, NextFunction } from "express";
+import User from "../models/User";
 
 const router = express.Router();
 
-// Отримання профілю користувача
-router.get("/:id", async (req: Request, res: Response): Promise<void> => {
+router.get("/:id", async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
-    const user = await User.findOne({ userId: req.params.id });
+    const user = await User.findById(req.params.id);
     if (!user) {
       res.status(404).json({ message: "User not found" });
       return;
@@ -18,7 +16,7 @@ router.get("/:id", async (req: Request, res: Response): Promise<void> => {
     });
   } catch (error) {
     console.error("Error fetching user:", error);
-    res.status(500).json({ message: "Server error" });
+    next(error);
   }
 });
 
