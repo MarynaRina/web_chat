@@ -7,6 +7,7 @@ const express_1 = __importDefault(require("express"));
 const dotenv_1 = __importDefault(require("dotenv"));
 const cloudinary_1 = require("cloudinary");
 const cors_1 = __importDefault(require("cors"));
+const phoneAuthRoutes_1 = __importDefault(require("./routes/phoneAuthRoutes"));
 console.log("Starting server.js... THIS IS THE FIRST LOG");
 dotenv_1.default.config();
 console.log("✅ Environment variables loaded");
@@ -27,6 +28,8 @@ console.log("Express app created");
 const PORT = process.env.PORT || 3001;
 app.use((0, cors_1.default)({ origin: "https://webchat-c0fbb.web.app", credentials: true }));
 console.log("CORS configured");
+app.use("/api/auth", phoneAuthRoutes_1.default);
+console.log("Phone auth routes configured");
 app.get("/", (_req, res) => {
     res.send("Chat Server API is running!");
 });
