@@ -182,9 +182,25 @@ app.get("/", (_req, res) => {
   res.send("Chat Server API is running!");
 });
 
+// Global error handler
+app.use((err: any, _req: Request, res: Response, _next: Function) => {
+  console.error("❌ Global Error Handler:", err);
+  res.status(500).json({ message: "Server error" });
+});
+console.log("Global error handler configured");
+
 connectDB().then(() => {
   console.log("MongoDB connected");
   server.listen(PORT, () => {
     console.log(`🚀 Server running on port ${PORT}`);
   });
 });
+
+// Unhandled error protection
+process.on("unhandledRejection", (reason, promise) => {
+  console.error("Unhandled Rejection at:", promise, "reason:", reason);
+});
+process.on("uncaughtException", (error) => {
+  console.error("Uncaught Exception:", error);
+});
+console.log("Unhandled error protection configured");
