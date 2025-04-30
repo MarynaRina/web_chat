@@ -1,4 +1,13 @@
 "use strict";
+var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
+    function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
+    return new (P || (P = Promise))(function (resolve, reject) {
+        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
+        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
+        function step(result) { result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected); }
+        step((generator = generator.apply(thisArg, _arguments || [])).next());
+    });
+};
 var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
@@ -12,6 +21,7 @@ const userRoutes_1 = __importDefault(require("./routes/userRoutes"));
 const db_1 = __importDefault(require("./config/db"));
 const multer_1 = __importDefault(require("multer"));
 const path_1 = __importDefault(require("path"));
+const User_1 = __importDefault(require("./models/User"));
 console.log("Starting server.js... THIS IS THE FIRST LOG");
 dotenv_1.default.config();
 console.log("✅ Environment variables loaded");
@@ -52,6 +62,34 @@ app.use("/api/auth", phoneAuthRoutes_1.default);
 console.log("Phone auth routes configured");
 app.use("/api/users", userRoutes_1.default);
 console.log("User routes configured");
+// Profile setup route
+app.post("/api/users/setup", upload.single("avatar"), (req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    try {
+        const { username, userId } = req.body;
+        const file = req.file;
+        if (!username || !userId || !file) {
+            res.status(400).json({
+                success: false,
+                message: "Missing required fields: username, userId, or avatar",
+            });
+            return;
+        }
+        const uploadResult = yield cloudinary_1.v2.uploader.upload(file.path);
+        const avatarUrl = uploadResult.secure_url;
+        const updatedUser = yield User_1.default.findOneAndUpdate({ userId }, { username, avatarUrl }, { upsert: true, new: true });
+        console.log("✅ Profile updated for:", userId);
+        res.status(200).json({ success: true, avatarUrl });
+    }
+    catch (error) {
+        console.error("❌ Error in /api/users/setup:", error.message || error);
+        res.status(500).json({
+            success: false,
+            message: "Server error",
+            error: error.message || "Unknown error",
+        });
+    }
+}));
+console.log("Profile setup route configured");
 app.get("/", (_req, res) => {
     res.send("Chat Server API is running!");
 });

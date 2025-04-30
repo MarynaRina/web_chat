@@ -7,6 +7,8 @@ import userRoutes from "./routes/userRoutes";
 import connectDB from "./config/db";
 import multer from "multer";
 import path from "path";
+import { Request, Response } from "express";
+import User from "./models/User";
 
 console.log("Starting server.js... THIS IS THE FIRST LOG");
 
@@ -60,6 +62,46 @@ console.log("Phone auth routes configured");
 
 app.use("/api/users", userRoutes);
 console.log("User routes configured");
+
+// Profile setup route
+app.post(
+  "/api/users/setup",
+  upload.single("avatar"),
+  async (req: Request & { file?: Express.Multer.File }, res: Response) => {
+    try {
+      const { username, userId } = req.body;
+      const file = req.file;
+
+      if (!username || !userId || !file) {
+        res.status(400).json({
+          success: false,
+          message: "Missing required fields: username, userId, or avatar",
+        });
+        return;
+      }
+
+      const uploadResult = await cloudinary.uploader.upload(file.path);
+      const avatarUrl = uploadResult.secure_url;
+
+      const updatedUser = await User.findOneAndUpdate(
+        { userId },
+        { username, avatarUrl },
+        { upsert: true, new: true }
+      );
+
+      console.log("✅ Profile updated for:", userId);
+      res.status(200).json({ success: true, avatarUrl });
+    } catch (error: any) {
+      console.error("❌ Error in /api/users/setup:", error.message || error);
+      res.status(500).json({
+        success: false,
+        message: "Server error",
+        error: error.message || "Unknown error",
+      });
+    }
+  }
+);
+console.log("Profile setup route configured");
 
 app.get("/", (_req, res) => {
   res.send("Chat Server API is running!");
