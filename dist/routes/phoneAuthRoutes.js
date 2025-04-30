@@ -23,7 +23,6 @@ const codes = new Map();
 const generateCode = () => {
     return Math.floor(100000 + Math.random() * 900000).toString();
 };
-// Видаляємо повернення результату, щоб відповідати типу RequestHandler
 const sendCode = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     const { phone } = req.body;
     if (!phone) {
@@ -35,7 +34,6 @@ const sendCode = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     console.log(`Code for ${phone}: ${code}`);
     res.json({ message: 'Code sent successfully' });
 });
-// Видаляємо повернення результату, щоб відповідати типу RequestHandler
 const verifyCode = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     const { phone, code } = req.body;
     if (!phone || !code) {
@@ -51,18 +49,20 @@ const verifyCode = (req, res) => __awaiter(void 0, void 0, void 0, function* () 
     if (!user) {
         user = yield User_1.default.create({ phone });
     }
+    if (!process.env.JWT_SECRET) {
+        res.status(500).json({ message: 'JWT_SECRET is not defined' });
+        return;
+    }
     const token = jsonwebtoken_1.default.sign({ userId: user._id }, process.env.JWT_SECRET, { expiresIn: '7d' });
     codes.delete(phone);
     res.json({ token });
 });
 router.post('/send-code', sendCode);
 router.post('/verify-code', verifyCode);
-// Виправлення обробника для /me
 router.get('/me', authMiddleware_1.default, (req, res, next) => __awaiter(void 0, void 0, void 0, function* () {
     var _a;
     try {
         const userId = (_a = req.user) === null || _a === void 0 ? void 0 : _a.userId;
-        // Виправлення .status() на правильний метод
         const user = yield User_1.default.findById(userId);
         if (!user) {
             res.status(404).json({ message: 'User not found' });

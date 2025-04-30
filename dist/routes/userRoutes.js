@@ -12,14 +12,12 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-// src/routes/userRoutes.ts
 const express_1 = __importDefault(require("express"));
-const User_1 = __importDefault(require("../models/User")); // Імпортуємо модель User
+const User_1 = __importDefault(require("../models/User"));
 const router = express_1.default.Router();
-// Отримання профілю користувача
-router.get("/:id", (req, res) => __awaiter(void 0, void 0, void 0, function* () {
+router.get("/:id", (req, res, next) => __awaiter(void 0, void 0, void 0, function* () {
     try {
-        const user = yield User_1.default.findOne({ userId: req.params.id });
+        const user = yield User_1.default.findById(req.params.id);
         if (!user) {
             res.status(404).json({ message: "User not found" });
             return;
@@ -31,7 +29,7 @@ router.get("/:id", (req, res) => __awaiter(void 0, void 0, void 0, function* () 
     }
     catch (error) {
         console.error("Error fetching user:", error);
-        res.status(500).json({ message: "Server error" });
+        next(error);
     }
 }));
 exports.default = router;
