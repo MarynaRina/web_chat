@@ -21,11 +21,10 @@ const cors_1 = __importDefault(require("cors"));
 const phoneAuthRoutes_1 = __importDefault(require("./routes/phoneAuthRoutes"));
 const userRoutes_1 = __importDefault(require("./routes/userRoutes"));
 const db_1 = __importDefault(require("./config/db"));
-const multer_1 = __importDefault(require("multer"));
-const path_1 = __importDefault(require("path"));
+const setupProfile_1 = require("./controllers/setupProfile");
 const User_1 = __importDefault(require("./models/User"));
 const Message_1 = __importDefault(require("./models/Message"));
-console.log("Starting server.js... THIS IS THE FIRST LOG");
+console.log("Starting server.js...");
 dotenv_1.default.config();
 console.log("✅ Environment variables loaded");
 if (!process.env.CLOUDINARY_CLOUD_NAME ||
@@ -42,9 +41,8 @@ cloudinary_1.v2.config({
 console.log("✅ Cloudinary configured");
 const app = (0, express_1.default)();
 const server = (0, http_1.createServer)(app);
-console.log("Express app and HTTP server created");
 const PORT = process.env.PORT || 3001;
-// Socket.IO config
+console.log("Express app and HTTP server created");
 const io = new socket_io_1.Server(server, {
     cors: {
         origin: "https://webchat-c0fbb.web.app",
@@ -86,92 +84,32 @@ io.on("connection", (socket) => {
         console.log("🔴 User disconnected:", socket.id);
     }));
 });
-// Multer config
-const storage = multer_1.default.diskStorage({
-    destination: (_req, _file, cb) => cb(null, "uploads/"),
-    filename: (_req, file, cb) => {
-        const uniqueName = `${Date.now()}-${Math.round(Math.random() * 1e9)}${path_1.default.extname(file.originalname)}`;
-        cb(null, uniqueName);
-    },
-});
-const upload = (0, multer_1.default)({ storage });
-console.log("Multer configured");
-// Middleware
 app.use((0, cors_1.default)({ origin: "https://webchat-c0fbb.web.app", credentials: true }));
-console.log("CORS configured");
 app.use(express_1.default.json());
-console.log("JSON parsing configured");
-app.use("/uploads", express_1.default.static("uploads"));
-console.log("Static uploads folder configured");
-// Routes
 app.use("/api/auth", phoneAuthRoutes_1.default);
-console.log("Phone auth routes configured");
 app.use("/api/users", userRoutes_1.default);
-console.log("User routes configured");
-// Profile setup route
-app.post("/api/users/setup", upload.single("avatar"), (req, res) => __awaiter(void 0, void 0, void 0, function* () {
-    try {
-        const { username, userId } = req.body;
-        const file = req.file;
-        if (!username || !userId || !file) {
-            res.status(400).json({
-                success: false,
-                message: "Missing required fields: username, userId, or avatar",
-            });
-            return;
-        }
-        const uploadResult = yield cloudinary_1.v2.uploader.upload(file.path);
-        const avatarUrl = uploadResult.secure_url;
-        const updatedUser = yield User_1.default.findOneAndUpdate({ userId }, { username, avatarUrl }, { upsert: true, new: true });
-        console.log("✅ Profile updated for:", userId);
-        res.status(200).json({ success: true, avatarUrl });
-    }
-    catch (error) {
-        console.error("❌ Error in /api/users/setup:", error.message || error);
-        res.status(500).json({
-            success: false,
-            message: "Server error",
-            error: error.message || "Unknown error",
-        });
-    }
-}));
-console.log("Profile setup route configured");
-// Get online users
+app.post("/api/users/setup", setupProfile_1.upload.single("avatar"), setupProfile_1.setupProfileHandler);
 app.get("/api/users/online", (_req, res) => {
-    try {
-        console.log("Handling /api/users/online request...");
-        console.log("Active users:", activeUsers);
-        const users = Array.from(activeUsers.values());
-        console.log("Users array:", users);
-        res.json({ users });
-    }
-    catch (error) {
-        console.error("Error in /api/users/online:", error);
-        res.status(500).json({ message: "Server error in /api/users/online", error: error.message });
-    }
+    const users = Array.from(activeUsers.values());
+    res.json({ users });
 });
-console.log("Online users route configured");
 app.get("/", (_req, res) => {
     res.send("Chat Server API is running!");
 });
-// Global error handler
 app.use((err, _req, res, _next) => {
     console.error("❌ Global Error Handler:", err);
     res.status(500).json({ message: "Server error" });
 });
-console.log("Global error handler configured");
 (0, db_1.default)().then(() => {
     console.log("MongoDB connected");
     server.listen(PORT, () => {
         console.log(`🚀 Server running on port ${PORT}`);
     });
 });
-// Unhandled error protection
 process.on("unhandledRejection", (reason, promise) => {
     console.error("Unhandled Rejection at:", promise, "reason:", reason);
 });
 process.on("uncaughtException", (error) => {
     console.error("Uncaught Exception:", error);
 });
-console.log("Unhandled error protection configured");
 //# sourceMappingURL=server.js.map

@@ -3,11 +3,10 @@ import { Request, Response } from "express";
 import { v2 as cloudinary } from "cloudinary";
 import User from "../models/User";
 
-// Використовуємо памʼять замість файлової системи
+// Налаштування multer для зберігання в оперативній памʼяті
 const storage = multer.memoryStorage();
 const upload = multer({ storage });
 
-// Обробник POST-запиту /api/users/setup
 const setupProfileHandler = async (
   req: Request & { file?: Express.Multer.File },
   res: Response
@@ -17,13 +16,13 @@ const setupProfileHandler = async (
     const file = req.file;
 
     if (!username || !userId || !file) {
-      res.status(400).json({ message: "Missing required fields" });
+      res.status(400).json({ message: "Missing required fields: username, userId, or avatar" });
       return;
     }
 
-    // Завантаження зображення у Cloudinary через стрім
-    const streamUpload = (buffer: Buffer) => {
-      return new Promise<{ secure_url: string }>((resolve, reject) => {
+    // Функція для завантаження в Cloudinary
+    const streamUpload = (buffer: Buffer): Promise<{ secure_url: string }> => {
+      return new Promise((resolve, reject) => {
         const stream = cloudinary.uploader.upload_stream(
           { resource_type: "image" },
           (error, result) => {
@@ -35,9 +34,11 @@ const setupProfileHandler = async (
       });
     };
 
-    const result = await streamUpload(file.buffer);
-    const avatarUrl = result.secure_url;
+    // Завантаження файлу
+    const uploadResult = await streamUpload(file.buffer);
+    const avatarUrl = uploadResult.secure_url;
 
+    // Оновлення або створення користувача
     await User.findOneAndUpdate(
       { userId },
       { username, avatarUrl },

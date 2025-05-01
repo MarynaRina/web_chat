@@ -7,22 +7,25 @@ import cors from "cors";
 import phoneAuthRoutes from "./routes/phoneAuthRoutes";
 import userRoutes from "./routes/userRoutes";
 import connectDB from "./config/db";
-import multer from "multer";
-import { setupProfileHandler } from "./controllers/setupProfile";
-import path from "path";
+import { upload, setupProfileHandler } from "./controllers/setupProfile";
 import User from "./models/User";
 import Message from "./models/Message";
 import { ActiveUser } from "./types/activeUser";
 
-console.log("Starting server.js... THIS IS THE FIRST LOG");
+console.log("Starting server.js...");
 
 dotenv.config();
 console.log("✅ Environment variables loaded");
 
-if (!process.env.CLOUDINARY_CLOUD_NAME || !process.env.CLOUDINARY_API_KEY || !process.env.CLOUDINARY_API_SECRET) {
+if (
+  !process.env.CLOUDINARY_CLOUD_NAME ||
+  !process.env.CLOUDINARY_API_KEY ||
+  !process.env.CLOUDINARY_API_SECRET
+) {
   console.error("❌ Cloudinary configuration missing");
   process.exit(1);
 }
+
 cloudinary.config({
   cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
   api_key: process.env.CLOUDINARY_API_KEY,
@@ -63,7 +66,10 @@ io.on("connection", (socket) => {
     const history = await Message.find().sort({ timestamp: 1 }).limit(50);
     socket.emit("chat_history", history);
 
-    io.emit("users_update", Array.from(activeUsers.values()).map((u) => u.phone));
+    io.emit(
+      "users_update",
+      Array.from(activeUsers.values()).map((u) => u.phone)
+    );
   });
 
   socket.on("send_message", async (data) => {
@@ -81,43 +87,31 @@ io.on("connection", (socket) => {
   socket.on("disconnect", async () => {
     const user = activeUsers.get(socket.id);
     if (user) {
-      await User.findOneAndUpdate({ socketId: socket.id }, { lastActive: new Date() });
+      await User.findOneAndUpdate(
+        { socketId: socket.id },
+        { lastActive: new Date() }
+      );
       activeUsers.delete(socket.id);
-      io.emit("users_update", Array.from(activeUsers.values()).map((u) => u.phone));
+      io.emit(
+        "users_update",
+        Array.from(activeUsers.values()).map((u) => u.phone)
+      );
     }
     console.log("🔴 User disconnected:", socket.id);
   });
 });
 
 app.use(cors({ origin: "https://webchat-c0fbb.web.app", credentials: true }));
-console.log("CORS configured");
-
 app.use(express.json());
-console.log("JSON parsing configured");
-
-// Замість збереження в файлову систему
-const upload = multer({ storage: multer.memoryStorage() });
-console.log("Multer memory storage configured");
 
 app.use("/api/auth", phoneAuthRoutes);
-console.log("Phone auth routes configured");
-
 app.use("/api/users", userRoutes);
-console.log("User routes configured");
-
 app.post("/api/users/setup", upload.single("avatar"), setupProfileHandler);
-console.log("Profile setup route configured");
 
 app.get("/api/users/online", (_req: Request, res: Response) => {
-  try {
-    const users = Array.from(activeUsers.values());
-    res.json({ users });
-  } catch (error: any) {
-    console.error("Error in /api/users/online:", error);
-    res.status(500).json({ message: "Server error in /api/users/online", error: error.message });
-  }
+  const users = Array.from(activeUsers.values());
+  res.json({ users });
 });
-console.log("Online users route configured");
 
 app.get("/", (_req, res) => {
   res.send("Chat Server API is running!");
@@ -127,7 +121,6 @@ app.use((err: any, _req: Request, res: Response, _next: Function) => {
   console.error("❌ Global Error Handler:", err);
   res.status(500).json({ message: "Server error" });
 });
-console.log("Global error handler configured");
 
 connectDB().then(() => {
   console.log("MongoDB connected");
@@ -139,8 +132,6 @@ connectDB().then(() => {
 process.on("unhandledRejection", (reason, promise) => {
   console.error("Unhandled Rejection at:", promise, "reason:", reason);
 });
-
 process.on("uncaughtException", (error) => {
   console.error("Uncaught Exception:", error);
 });
-console.log("Unhandled error protection configured");
