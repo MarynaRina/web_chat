@@ -68,26 +68,31 @@ io.on("connection", (socket) => {
 
   socket.on("send_message", async (data) => {
     try {
-      const user = await User.findOne({ userId: data.sender });
+      console.log("📩 Incoming message:", data);
+  
+      // Якщо раптом userId буде числом, перетворюємо на рядок
+      const userId = data.sender?.toString();
+      const user = await User.findOne({ userId });
   
       if (!user) {
-        console.warn(`User not found for ID: ${data.sender}`);
+        console.warn(`❌ User not found in DB for ID: ${userId}`);
         return;
       }
   
       const message = new Message({
         id: data.id,
         text: data.text,
-        sender: data.sender,
+        sender: userId,
         senderName: user.username || "Anonymous",
-        avatarUrl: user.avatarUrl || "", // fallback, якщо аватарки нема
+        avatarUrl: user.avatarUrl || "", // fallback
         timestamp: new Date(),
       });
   
       await message.save();
       io.emit("receive_message", message);
+      console.log("✅ Message saved and emitted:", message);
     } catch (error) {
-      console.error("Error saving message:", error);
+      console.error("❌ Error saving message:", error);
     }
   });
 
