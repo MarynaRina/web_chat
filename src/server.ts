@@ -12,10 +12,7 @@ import User from "./models/User";
 import Message from "./models/Message";
 import { ActiveUser } from "./types/activeUser";
 
-console.log("Starting server.js...");
-
 dotenv.config();
-console.log("✅ Environment variables loaded");
 
 if (
   !process.env.CLOUDINARY_CLOUD_NAME ||
@@ -31,12 +28,10 @@ cloudinary.config({
   api_key: process.env.CLOUDINARY_API_KEY,
   api_secret: process.env.CLOUDINARY_API_SECRET,
 });
-console.log("✅ Cloudinary configured");
 
 const app = express();
 const server = createServer(app);
 const PORT = process.env.PORT || 3001;
-console.log("Express app and HTTP server created");
 
 const io = new Server(server, {
   cors: {
@@ -47,7 +42,6 @@ const io = new Server(server, {
   transports: ["websocket", "polling"],
   allowEIO3: true,
 });
-console.log("Socket.IO configured");
 
 const activeUsers = new Map<string, ActiveUser>();
 
@@ -73,13 +67,17 @@ io.on("connection", (socket) => {
   });
 
   socket.on("send_message", async (data) => {
+    const user = await User.findOne({ userId: data.sender });
+
     const message = new Message({
       id: data.id,
       text: data.text,
       sender: data.sender,
-      senderName: data.senderName,
+      senderName: user?.username || "Unknown",
+      senderAvatar: user?.avatarUrl || "",
       timestamp: new Date(),
     });
+
     await message.save();
     io.emit("receive_message", message);
   });

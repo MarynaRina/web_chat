@@ -1,5 +1,4 @@
-// src/models/Message.ts
-import mongoose, { Document, Schema } from "mongoose";
+import mongoose, { Document } from "mongoose";
 
 // Інтерфейс для повідомлень
 export interface IMessage extends Document {
@@ -7,15 +6,17 @@ export interface IMessage extends Document {
   text: string;
   sender: string;
   senderName: string;
+  senderAvatar?: string;
   timestamp: Date;
 }
 
 const messageSchema = new mongoose.Schema<IMessage>({
-  id: String,
-  text: String,
-  sender: String,
-  senderName: String,
-  timestamp: Date,
+  id: { type: String, required: true },
+  text: { type: String, required: true },
+  sender: { type: String, required: true },
+  senderName: { type: String, required: true },
+  senderAvatar: { type: String, required: false },
+  timestamp: { type: Date, required: true },
 });
 
 export default mongoose.model<IMessage>("Message", messageSchema);
