@@ -8,7 +8,7 @@ import phoneAuthRoutes from "./routes/phoneAuthRoutes";
 import userRoutes from "./routes/userRoutes";
 import connectDB from "./config/db";
 import multer from "multer";
-import { setupProfileHandler, upload } from "./controllers/setupProfile";
+import { setupProfileHandler } from "./controllers/setupProfile";
 import path from "path";
 import User from "./models/User";
 import Message from "./models/Message";
@@ -95,8 +95,9 @@ console.log("CORS configured");
 app.use(express.json());
 console.log("JSON parsing configured");
 
-app.use("/uploads", express.static("uploads"));
-console.log("Static uploads folder configured");
+// Замість збереження в файлову систему
+const upload = multer({ storage: multer.memoryStorage() });
+console.log("Multer memory storage configured");
 
 app.use("/api/auth", phoneAuthRoutes);
 console.log("Phone auth routes configured");
