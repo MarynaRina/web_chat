@@ -67,19 +67,28 @@ io.on("connection", (socket) => {
   });
 
   socket.on("send_message", async (data) => {
-    const user = await User.findOne({ userId: data.sender });
-
-    const message = new Message({
-      id: data.id,
-      text: data.text,
-      sender: data.sender,
-      senderName: user?.username || "Unknown",
-      senderAvatar: user?.avatarUrl || "",
-      timestamp: new Date(),
-    });
-
-    await message.save();
-    io.emit("receive_message", message);
+    try {
+      const user = await User.findOne({ userId: data.sender });
+  
+      if (!user) {
+        console.warn(`User not found for ID: ${data.sender}`);
+        return;
+      }
+  
+      const message = new Message({
+        id: data.id,
+        text: data.text,
+        sender: data.sender,
+        senderName: user.username || "Anonymous",
+        avatarUrl: user.avatarUrl || "", // fallback, якщо аватарки нема
+        timestamp: new Date(),
+      });
+  
+      await message.save();
+      io.emit("receive_message", message);
+    } catch (error) {
+      console.error("Error saving message:", error);
+    }
   });
 
   socket.on("disconnect", async () => {
